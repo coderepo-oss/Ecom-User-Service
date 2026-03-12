@@ -1,6 +1,8 @@
 package com.easybuy.UserService.Controller;
 
 import com.easybuy.UserService.Entity.UserLogin;
+import com.easybuy.UserService.Entity.UserSignup;
+import com.easybuy.UserService.Service.LoginService;
 import com.easybuy.UserService.Util.JWTUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,8 +17,12 @@ public class UserLoginController {
 
     @Autowired
     private AuthenticationManager authenticationManager;
+
     @Autowired
     private JWTUtil jwtUtil;
+
+    @Autowired
+    private LoginService loginService;
 
     @PostMapping("/login")
     public ResponseEntity<?> generatetoken(@RequestBody UserLogin loginRequest) {
@@ -28,10 +34,13 @@ public class UserLoginController {
                     )
             );
 
-            String token = jwtUtil.generateToken(loginRequest.getEmail());
+            UserSignup user = (UserSignup) loginService.loadUserByUsername(loginRequest.getEmail());
+
+            String token = jwtUtil.generateToken(loginRequest.getEmail(), user.getId());
 
             return ResponseEntity.ok(Map.of(
-                    "token", token
+                    "token", token,
+                    "userId", user.getId()
             ));
 
         } catch (BadCredentialsException ex) {
