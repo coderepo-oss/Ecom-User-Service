@@ -45,7 +45,7 @@ public class UserLoginController {
 
         } catch (BadCredentialsException ex) {
             return ResponseEntity.status(401).body(Map.of(
-                    "error", "Invalid email or password"
+                    "error", "Invalid email/ password"
             ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
