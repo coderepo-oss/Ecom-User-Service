@@ -27,10 +27,17 @@ public class GoogleLoginController {
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
+
+        // Null check for email
+        if (email == null) {
+            return ResponseEntity.status(400).body(Map.of(
+                    "error", "Could not retrieve email from Google account"
+            ));
+        }
+
         String firstName = oAuth2User.getAttribute("given_name");
         String lastName = oAuth2User.getAttribute("family_name");
         String gender = oAuth2User.getAttribute("gender");
-        String picture = oAuth2User.getAttribute("picture");
 
         UserSignup user = userRepository.findByEmail(email)
                 .map(existingUser -> {
@@ -53,14 +60,14 @@ public class GoogleLoginController {
                             .createdAt(LocalDateTime.now())
                             .updatedAt(LocalDateTime.now())
                             .build();
-
                     return userRepository.save(newUser);
                 });
 
-        String token = jwtUtil.generateToken(user.getEmail());
+        String token = jwtUtil.generateToken(user.getEmail(), user.getId());
 
         return ResponseEntity.ok(Map.of(
                 "token", token,
+                "userId", user.getId(),
                 "message", "login successful"
         ));
     }
