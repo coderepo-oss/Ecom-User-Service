@@ -59,7 +59,7 @@ public class UserValidator {
             if (blank(user.getLastName())) {
                 throw new UserServiceException("LASTNAME_REQUIRED", "Last name is required");
             }
-            if (user.getPhoneNumber().length()<10 && blank(user.getPhoneNumber()) && !user.getPhoneNumber().matches("^[0-9]{10}$")) {
+            if (blank(user.getPhoneNumber()) || !user.getPhoneNumber().matches("^[0-9]{10}$")) {
                 throw new UserServiceException("PHONE_INVALID", "Phone must be 10 digits");
             }
             if (!blank(user.getGender()) && !user.getGender().matches("(?i)male|female|other")) {
@@ -71,6 +71,44 @@ public class UserValidator {
             }
         }
         log.info("UserId {} validation completed successfully", userId);
+    }
+    public static void validateUpdate(UserSignup user) {
+
+        if (user.getEmail() != null) {
+            if (!user.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                throw new UserServiceException("EMAIL_INVALID", "Invalid email format");
+            }
+        }
+
+        if (user.getPhoneNumber() != null) {
+            if (!user.getPhoneNumber().matches("^[0-9]{10}$")) {
+                throw new UserServiceException("PHONE_INVALID", "Phone must be exactly 10 digits");
+            }
+        }
+
+        if (user.getFirstName() != null) {
+            if (!user.getFirstName().matches("^[a-zA-Z]+$")) {
+                throw new UserServiceException("FIRSTNAME_INVALID", "First name must contain only letters");
+            }
+        }
+
+        if (user.getLastName() != null) {
+            if (!user.getLastName().matches("^[a-zA-Z]+$")) {
+                throw new UserServiceException("LASTNAME_INVALID", "Last name must contain only letters");
+            }
+        }
+
+        if (user.getGender() != null) {
+            if (!user.getGender().matches("(?i)male|female|other")) {
+                throw new UserServiceException("GENDER_INVALID", "Gender must be male, female, or other");
+            }
+        }
+
+        if (user.getDateOfBirth() != null) {
+            if (user.getDateOfBirth().isAfter(LocalDate.now())) {
+                throw new UserServiceException("DOB_INVALID", "Date of birth cannot be in the future");
+            }
+        }
     }
 
     private static boolean blank(String s) {

@@ -20,13 +20,9 @@ public class UserProfileController {
 
     @GetMapping("/viewprofile/{id}")
     @AuthorizeUser(pathVariable = "id")
-    public ResponseEntity<UserSignup> viewProfile(
-            @PathVariable("id") Long id) {
-
+    public ResponseEntity<UserSignup> viewProfile(@PathVariable("id") Long id) {
         log.info("View profile request for id: {}", id);
-
         UserSignup userProfile = userService.viewProfile(id);
-
         log.info("Profile fetched successfully for id: {}", id);
         return ResponseEntity.ok(userProfile);
     }
@@ -36,11 +32,17 @@ public class UserProfileController {
     public ResponseEntity<UserSignup> updateProfile(
             @PathVariable("id") Long id,
             @RequestBody UserSignup updatedUser) {
-
         log.info("Update profile request for id: {}", id);
-
         UserSignup updatedProfile = userService.updateProfile(id, updatedUser);
         log.info("Profile updated successfully for id: {}", id);
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    @DeleteMapping("/delete/{id}")
+    @AuthorizeUser(pathVariable = "id")
+    public ResponseEntity<String> deleteAccount(@PathVariable Long id) {
+        log.info("Delete account request for id: {}", id);
+        userService.deleteAccount(id);
+        return ResponseEntity.ok("Account deleted successfully");
     }
 }

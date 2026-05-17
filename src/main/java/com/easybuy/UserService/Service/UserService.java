@@ -6,8 +6,11 @@ import com.easybuy.UserService.Repository.UserRepository;
 import com.easybuy.UserService.Validators.UserValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -19,9 +22,11 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JavaMailSender mailSender;
+
 
     public UserSignup register(UserSignup user) {
-
         log.info("Registering new User. Temp userId: {}", user.getId());
         user.setProvider("LOCAL");
         UserValidator.validate(user);
@@ -30,75 +35,95 @@ public class UserService {
             log.error("Signup failed: EMAIL_ALREADY_EXISTS");
             throw new UserServiceException("EMAIL_ALREADY_EXISTS", "Email already exists");
         }
-
         if (userRepository.existsByPhoneNumber(user.getPhoneNumber())) {
             log.error("Signup failed: PHONENUMBER_ALREADY_EXIST");
             throw new UserServiceException("PHONENUMBER_ALREADY_EXIST", "Phone number already exists");
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-
         UserSignup savedUser = userRepository.save(user);
         log.info("User created successfully with userId {}", savedUser.getId());
-
         return savedUser;
     }
 
     public UserSignup viewProfile(Long id) {
         log.info("Fetching profile for userId: {}", id);
-
-        UserSignup user= userRepository.findById(id)
-                .orElseThrow(() -> new UserServiceException(
-                        "USER_NOT_FOUND",
-                        "User not found"
-                ));
-     return user;
+        return userRepository.findById(id)
+                .orElseThrow(() -> new UserServiceException("USER_NOT_FOUND", "User not found"));
     }
 
-    public UserSignup updateProfile(Long id, UserSignup user)
-    {
+    public UserSignup updateProfile(Long id, UserSignup user) {
         log.info("Updating profile for userId: {}", id);
-
+        UserValidator.validateUpdate(user);
         UserSignup existingUser = userRepository.findById(id)
-                .orElseThrow(() -> new UserServiceException(
-                        "USER_NOT_FOUND",
-                        "User not found"
-                ));
-        if(user.getEmail().equals(existingUser.getEmail())) {
-            log.error("Update failed: EMAIL_ALREADY_EXISTS");
-            throw new UserServiceException("EMAIL_ALREADY_EXISTS", "Email already exists");
+                .orElseThrow(() -> new UserServiceException("USER_NOT_FOUND", "User not found"));
+
+        // Email conflict check
+        if (user.getEmail() != null && !user.getEmail().equals(existingUser.getEmail())) {
+            if (userRepository.existsByEmail(user.getEmail())) {
+                log.error("Update failed: EMAIL_ALREADY_EXISTS");
+                throw new UserServiceException("EMAIL_ALREADY_EXISTS", "Email already exists");
+            }
         }
-        else
-        {
-            existingUser.setEmail(user.getEmail());
-            log.info("Email updated for userId: {}", id);
-        }
-        if (user.getFirstName() != null) {
-            existingUser.setFirstName(user.getFirstName());
-        }
-        if (user.getLastName() != null) {
-            existingUser.setLastName(user.getLastName());
-        }
-        if (user.getPhoneNumber() != null) {
-            if (!user.getPhoneNumber().equals(existingUser.getPhoneNumber()) &&
-                    userRepository.existsByPhoneNumber(user.getPhoneNumber())) {
+
+        // Phone conflict check
+        if (user.getPhoneNumber() != null && !user.getPhoneNumber().equals(existingUser.getPhoneNumber())) {
+            if (userRepository.existsByPhoneNumber(user.getPhoneNumber())) {
                 log.error("Update failed: PHONENUMBER_ALREADY_EXIST");
                 throw new UserServiceException("PHONENUMBER_ALREADY_EXIST", "Phone number already exists");
             }
-            existingUser.setPhoneNumber(user.getPhoneNumber());
         }
+        existingUser.setEmail(user.getEmail() != null ? user.getEmail() : existingUser.getEmail());
+        existingUser.setFirstName(user.getFirstName() != null ? user.getFirstName() : existingUser.getFirstName());
+        existingUser.setLastName(user.getLastName() != null ? user.getLastName() : existingUser.getLastName());
+        existingUser.setPhoneNumber(user.getPhoneNumber() != null ? user.getPhoneNumber() : existingUser.getPhoneNumber());
+        existingUser.setDateOfBirth(user.getDateOfBirth() != null ? user.getDateOfBirth() : existingUser.getDateOfBirth());
+        existingUser.setGender(user.getGender() != null ? user.getGender() : existingUser.getGender());
+
         UserSignup updatedUser = userRepository.save(existingUser);
         log.info("Profile updated successfully for userId: {}", id);
         return updatedUser;
     }
 
-    public UserSignup getUserById(Long userId)
-    {
+    public void forgotPassword(String email) {
+        log.info("Forgot password request for email: {}", email);
+
+        UserSignup user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserServiceException("USER_NOT_FOUND", "No account found with this email"));
+
+        String tempPassword = UUID.randomUUID().toString().substring(0, 8);
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        userRepository.save(user);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setFrom("rajesnadipalli16@gmail.com");
+        message.setSubject("EasyBuy - Password Reset");
+        message.setText(
+                "Hello,\n\n" +
+                        "We received a request to reset your EasyBuy account password.\n\n" +
+                        "Your temporary password is: " + tempPassword + "\n\n" +
+                        "Please log in and change your password immediately.\n\n" +
+                        "If you did not request this, please ignore this email.\n\n" +
+                        "Regards,\n" +
+                        "EasyBuy Team"
+        );
+
+        mailSender.send(message);
+        log.info("Email sent successfully to: {}", email);
+    }
+    public void deleteAccount(Long id) {
+        log.info("Delete account request for userId: {}", id);
+
+        UserSignup user = userRepository.findById(id)
+                .orElseThrow(() -> new UserServiceException("USER_NOT_FOUND", "User not found"));
+
+        userRepository.delete(user);
+        log.info("Account deleted successfully for userId: {}", id);
+    }
+    public UserSignup getUserById(Long userId) {
         log.info("Fetching user by id: {}", userId);
         return userRepository.findById(userId)
-                .orElseThrow(() -> new UserServiceException(
-                        "USER_NOT_FOUND",
-                        "User not found"
-                ));
+                .orElseThrow(() -> new UserServiceException("USER_NOT_FOUND", "User not found"));
     }
 }

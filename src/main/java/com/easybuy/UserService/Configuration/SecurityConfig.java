@@ -24,7 +24,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 .oauth2Login(oauth -> oauth
-                        .defaultSuccessUrl("/users/oauth/success", true) // 👈 only change!
+                        .defaultSuccessUrl("/users/oauth/success", true)
                 );
 
         return http.build();
